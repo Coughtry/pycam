@@ -570,7 +570,6 @@ class BaseCollection(object):
             get_event_handler().emit_event(self._list_changed_event)
 
 
-
 class BaseCollectionItemDataContainer(BaseDataContainer):
 
     # the name of the collection should be overwritten in every subclass
@@ -1130,7 +1129,6 @@ class ToolpathTransformation(BaseDataContainer):
     @_set_parser_context("Model transformation 'crop'")
     @_set_allowed_attributes({"action", "models"})
     def _get_cropped_toolpath(self, toolpath):
-        selected = self.core.get("toolpaths").get_selected()
         polygons = []
         for model in [m.get_model() for m in self.get_value("models")]:
             if hasattr(model, "get_polygons"):
@@ -1139,8 +1137,8 @@ class ToolpathTransformation(BaseDataContainer):
                 raise InvalidDataError("Toolpath Crop: 'models' may only contain 2D models")
         # Store the new toolpath first separately - otherwise we can't
         # revert the changes in case of an empty result.
-        new_moves = toolpath | Filters.Crop(polygons)
-        if new_moves | Filters.MovesOnly():
+        new_moves = toolpath | tp_filters.Crop(polygons)
+        if new_moves | tp_filters.MovesOnly():
             new_toolpath = toolpath.copy()
             new_toolpath.path = new_moves
             return new_toolpath
