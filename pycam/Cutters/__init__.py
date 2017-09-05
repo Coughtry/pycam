@@ -29,7 +29,7 @@ def get_tool_from_settings(tool_settings, height=None):
         "ToroidalCutter"
       - "radius": the tool radius
     The following settings are optional or shape specific:
-      - "torus_radius": necessary for ToroidalCutter
+      - "toroid_radius": necessary for ToroidalCutter
 
     @type tool_settings: dict
     @value tool_settings: contains the attributes of the tool
@@ -48,7 +48,7 @@ def get_tool_from_settings(tool_settings, height=None):
     elif cuttername == "CylindricalCutter":
         return CylindricalCutter(radius, height=height)
     elif cuttername == "ToroidalCutter":
-        toroid = tool_settings["torus_radius"]
+        toroid = tool_settings["toroid_radius"]
         return ToroidalCutter(radius, toroid, height=height)
     else:
         raise InvalidValueError("Invalid cutter shape: '%s' is not known" % str(cuttername))
