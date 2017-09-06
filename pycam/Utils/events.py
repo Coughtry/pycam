@@ -93,6 +93,7 @@ class EventCore(pycam.Gui.Settings.Settings):
         log.debug2("Event emitted: %s", str(event))
         if event in self.event_handlers:
             if self.event_handlers[event].blocker_tokens:
+                log.debug2("Ignoring blocked event: %s", str(event))
                 return
             # prevent infinite recursion
             self.block_event(event)
