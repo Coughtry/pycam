@@ -848,6 +848,7 @@ class ModelTransformation(BaseDataContainer):
 class Model(BaseCollectionItemDataContainer):
 
     collection_name = "model"
+    changed_event = "model-changed"
     list_changed_event = "model-list-changed"
     attribute_converters = {"source": Source,
                             "transformations": _get_list_resolver(ModelTransformation)}
