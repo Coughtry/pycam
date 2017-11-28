@@ -1,10 +1,13 @@
 import collections
 
+
 try:
+    import asyncio
+    from gi.repository import GLib
     from gi.repository import Gtk
 except ImportError:
-    # tolerate missing Gtk (even though this would make the MainLoop unusable)
-    Gtk = None
+    # tolerate missing components for mainloop
+    pass
 
 import pycam.Gui.Settings
 import pycam.Utils.log
@@ -34,25 +37,49 @@ def get_mainloop(use_gtk=False):
         mainloop = __mainloop[0]
     except IndexError:
         import asyncio
-        mainloop = GtkMainLoop()
+        mainloop = AsyncIOMainLoop()
         __mainloop.append(mainloop)
     return mainloop
 
 
-class GtkMainLoop:
+class AsyncIOMainLoop:
+
+    PERIOD_SECONDS = 0.05
+
+    def __init__(self):
+        self.loop = asyncio.get_event_loop()
+        self._gtk_context = GLib.MainContext.default()
+        self._stopped = False
+
+    async def _start_gtk(self):
+        await asyncio.sleep(0)
+        Gtk.main()
 
     def run(self):
+        if self._stopped:
+            return
+        asyncio.async(self._start_gtk())
+        self.loop.call_later(self.PERIOD_SECONDS, self._regular_gtk_update)
         try:
-            Gtk.main()
+            self.loop.run_forever()
         except KeyboardInterrupt:
             pass
+        finally:
+            self.loop.close()
 
     def stop(self):
+        self._stopped = True
         Gtk.main_quit()
+        self.loop.stop()
 
     def update(self):
-        while Gtk.events_pending():
-            Gtk.main_iteration()
+        while self._gtk_context.pending():
+            self._gtk_context.iteration(False)
+
+    def _regular_gtk_update(self):
+        self.update()
+        if not self._stopped:
+            self.loop.call_later(self.PERIOD_SECONDS, self._regular_gtk_update)
 
 
 def get_event_handler():
