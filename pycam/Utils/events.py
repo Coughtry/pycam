@@ -1,14 +1,5 @@
 import collections
 
-
-try:
-    import asyncio
-    from gi.repository import GLib
-    from gi.repository import Gtk
-except ImportError:
-    # tolerate missing components for mainloop
-    pass
-
 import pycam.Gui.Settings
 import pycam.Utils.log
 
@@ -36,9 +27,10 @@ def get_mainloop(use_gtk=False):
     try:
         mainloop = __mainloop[0]
     except IndexError:
-        import asyncio
         mainloop = AsyncIOMainLoop()
         __mainloop.append(mainloop)
+    if use_gtk:
+        mainloop.enable_gtk()
     return mainloop
 
 
@@ -47,39 +39,52 @@ class AsyncIOMainLoop:
     PERIOD_SECONDS = 0.05
 
     def __init__(self):
-        self.loop = asyncio.get_event_loop()
-        self._gtk_context = GLib.MainContext.default()
+        import asyncio
+        self._asyncio = asyncio
+        self.loop = self._asyncio.get_event_loop()
         self._stopped = False
+        self._use_gtk = False
 
-    async def _start_gtk(self):
-        await asyncio.sleep(0)
-        Gtk.main()
+    def enable_gtk(self):
+        if not self._use_gtk:
+            from gi.repository import GLib
+            from gi.repository import Gtk
+            self._gtk_context = GLib.MainContext.default()
+            self._gtk = Gtk
+            self._use_gtk = True
+
+            async def start_gtk():
+                await self._asyncio.sleep(0)
+                self._gtk.main()
+
+            self._asyncio.async(start_gtk())
+
+            def regular_gtk_update():
+                self.update()
+                if not self._stopped:
+                    self.loop.call_later(self.PERIOD_SECONDS, regular_gtk_update)
+
+            self.loop.call_later(self.PERIOD_SECONDS, regular_gtk_update)
 
     def run(self):
-        if self._stopped:
-            return
-        asyncio.async(self._start_gtk())
-        self.loop.call_later(self.PERIOD_SECONDS, self._regular_gtk_update)
-        try:
-            self.loop.run_forever()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            self.loop.close()
+        if not self._stopped:
+            try:
+                self.loop.run_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                self.loop.close()
 
     def stop(self):
         self._stopped = True
-        Gtk.main_quit()
+        if self._use_gtk:
+            self._gtk.main_quit()
         self.loop.stop()
 
     def update(self):
-        while self._gtk_context.pending():
-            self._gtk_context.iteration(False)
-
-    def _regular_gtk_update(self):
-        self.update()
-        if not self._stopped:
-            self.loop.call_later(self.PERIOD_SECONDS, self._regular_gtk_update)
+        if self._use_gtk:
+            while self._gtk_context.pending():
+                self._gtk_context.iteration(False)
 
 
 def get_event_handler():
